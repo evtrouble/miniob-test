@@ -21,6 +21,23 @@ jobs:
     - name: Checkout repository and submodules
       uses: actions/checkout@v4
 
+    - name: Setup build cache
+      id: build-cache
+      run: |
+        echo "cache-key=build-${{ github.sha }}-${{ github.run_id }}" >> $GITHUB_OUTPUT
+
+    - name: Cache build dependencies
+      uses: actions/cache@v4
+      with:
+        path: |
+          deps/3rd/usr/local
+          build_release
+          build_debug
+        key: ${{ steps.build-cache.outputs.cache-key }}
+        restore-keys: |
+          build-${{ github.sha }}-
+          build-
+
     - name: Init
       shell: bash
       run: sudo bash build.sh init
@@ -68,6 +85,22 @@ jobs:
 
     - name: Checkout repository and submodules
       uses: actions/checkout@v4
+
+    - name: Setup build cache
+      id: build-cache
+      run: |
+        echo "cache-key=build-mac-${{ github.sha }}-${{ github.run_id }}" >> $GITHUB_OUTPUT
+
+    - name: Cache build dependencies
+      uses: actions/cache@v4
+      with:
+        path: |
+          deps/3rd/usr/local
+          build_release
+        key: ${{ steps.build-cache.outputs.cache-key }}
+        restore-keys: |
+          build-mac-${{ github.sha }}-
+          build-mac-
         
     - name: Build
       shell: bash

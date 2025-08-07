@@ -9,22 +9,71 @@ env:
   BUILD_TYPE: Release
 
 jobs:
-  basic-test:
+  build:
     runs-on: ubuntu-latest
-
+    outputs:
+      build-cache-key: ${{ steps.build-cache.outputs.cache-key }}
     steps:
       - name: Checkout repository and submodules
         uses: actions/checkout@v4
 
-      - name: run basic test
+      - name: Setup build cache
+        id: build-cache
+        run: |
+          echo "cache-key=build-${{ github.sha }}-${{ github.run_id }}" >> $GITHUB_OUTPUT
+
+      - name: Cache build dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            deps/3rd/usr/local
+            build_release
+          key: ${{ steps.build-cache.outputs.cache-key }}
+          restore-keys: |
+            build-${{ github.sha }}-
+            build-
+
+      - name: Install dependencies
         shell: bash
         run: |
           sudo bash build.sh init
+
+      - name: Build miniob
+        shell: bash
+        run: |
+          bash build.sh release -DCONCURRENCY=ON -DWITH_UNIT_TESTS=OFF -DWITH_BENCHMARK=ON
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifacts
+          path: |
+            build_release/
+            deps/3rd/usr/local/
+          retention-days: 1
+
+  basic-test:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Checkout repository and submodules
+        uses: actions/checkout@v4
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: build-artifacts
+          path: ./
+
+      - name: run basic test
+        shell: bash
+        run: |
           echo "begin test..."
           python3 test/case/miniob_test.py --test-cases=basic | tail -1 | grep "basic is success"
 
   # I found that sysbench would send more request before receiving last response
   sysbench-test:
+    needs: build
     strategy:
       matrix:
         thread_model: ['one-thread-per-connection', 'java-thread-pool']
@@ -35,18 +84,18 @@ jobs:
       - name: Checkout repository and submodules
         uses: actions/checkout@v4
 
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: build-artifacts
+          path: ./
+
       - name: install sysbench and mariadb-client
         shell: bash
         run: |
           curl -s https://packagecloud.io/install/repositories/akopytov/sysbench/script.deb.sh -o script.deb.sh
           sudo bash script.deb.sh
           sudo apt -y install sysbench mariadb-client
-
-      - name: build miniob
-        shell: bash
-        run: |
-          sudo bash build.sh init
-          bash build.sh release -DCONCURRENCY=ON -DWITH_UNIT_TESTS=OFF
 
       - name: start server
         shell: bash
@@ -87,15 +136,16 @@ jobs:
 
   benchmark-test:
     runs-on: ubuntu-latest
+    needs: build
     steps:
       - name: Checkout repository and submodules
         uses: actions/checkout@v4
       
-      - name: build observer and benchmark
-        shell: bash
-        run: |
-          sudo bash build.sh init
-          bash build.sh release -DCONCURRENCY=ON -DWITH_UNIT_TESTS=OFF -DWITH_BENCHMARK=ON
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: build-artifacts
+          path: ./
 
       - name: concurrency-test
         shell: bash
