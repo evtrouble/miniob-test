@@ -9,53 +9,10 @@ env:
   BUILD_TYPE: Release
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
-    outputs:
-      build-cache-key: ${{ steps.build-cache.outputs.cache-key }}
-    steps:
-      - name: Checkout repository and submodules
-        uses: actions/checkout@v4
-
-      - name: Setup build cache
-        id: build-cache
-        run: |
-          echo "cache-key=build-${{ github.sha }}-${{ runner.os }}-${{ github.run_id }}" >> $GITHUB_OUTPUT
-
-      - name: Cache build dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            deps/3rd/usr/local
-            build_release
-          key: ${{ steps.build-cache.outputs.cache-key }}
-          restore-keys: |
-            build-${{ github.sha }}-${{ runner.os }}-
-            build-${{ github.sha }}-
-            build-
-
-      - name: Install dependencies
-        shell: bash
-        run: |
-          sudo bash build.sh init
-
-      - name: Build miniob
-        shell: bash
-        run: |
-          bash build.sh release -DCONCURRENCY=ON -DWITH_UNIT_TESTS=OFF -DWITH_BENCHMARK=ON -DWITH_MEMTRACER=ON
-
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-artifacts
-          path: |
-            build_release/
-            deps/3rd/usr/local/
-          retention-days: 1
 
   basic-test:
     runs-on: ubuntu-latest
-    needs: build
+    needs: build-and-test-on-ubuntu
     steps:
       - name: Checkout repository and submodules
         uses: actions/checkout@v4
@@ -66,6 +23,13 @@ jobs:
           name: build-artifacts
           path: ./
 
+      - name: Fix permissions
+        shell: bash
+        run: |
+          chmod +x build_release/bin/*
+          chmod +x build_release/benchmark/*
+          chmod +x build_release/unittest/*
+
       - name: run basic test
         shell: bash
         run: |
@@ -74,7 +38,7 @@ jobs:
 
   # I found that sysbench would send more request before receiving last response
   sysbench-test:
-    needs: build
+    needs: build-and-test-on-ubuntu
     strategy:
       matrix:
         thread_model: ['one-thread-per-connection', 'java-thread-pool']
@@ -90,6 +54,13 @@ jobs:
         with:
           name: build-artifacts
           path: ./
+
+      - name: Fix permissions
+        shell: bash
+        run: |
+          chmod +x build_release/bin/*
+          chmod +x build_release/benchmark/*
+          chmod +x build_release/unittest/*
 
       - name: install sysbench and mariadb-client
         shell: bash
@@ -137,7 +108,7 @@ jobs:
 
   benchmark-test:
     runs-on: ubuntu-latest
-    needs: build
+    needs: build-and-test-on-ubuntu
     steps:
       - name: Checkout repository and submodules
         uses: actions/checkout@v4
@@ -148,13 +119,20 @@ jobs:
           name: build-artifacts
           path: ./
 
+      - name: Fix permissions
+        shell: bash
+        run: |
+          chmod +x build_release/bin/*
+          chmod +x build_release/benchmark/*
+          chmod +x build_release/unittest/*
+
       - name: concurrency-test
         shell: bash
         run: |
           cd build_release/bin/
           for file in `find ./ -name "*_concurrency_test" -executable`; do $file; if [ $? -ne 0 ]; then exit 1; fi; done
   memtracer-test:
-    needs: build
+    needs: build-and-test-on-ubuntu
     strategy:
       matrix:
         memtracer: ['LD_PRELOAD=./lib/libmemtracer.so', '']
@@ -168,6 +146,13 @@ jobs:
         with:
           name: build-artifacts
           path: ./
+
+      - name: Fix permissions
+        shell: bash
+        run: |
+          chmod +x build_release/bin/*
+          chmod +x build_release/benchmark/*
+          chmod +x build_release/unittest/*
 
       - name: memtracer-performance-test
         shell: bash
@@ -198,7 +183,7 @@ jobs:
           sleep 10 && echo "wake up"
           mysql -S /tmp/miniob.sock -e "show tables"
   integration-test:
-    needs: build
+    needs: build-and-test-on-ubuntu
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository and submodules
@@ -209,6 +194,13 @@ jobs:
         with:
           name: build-artifacts
           path: ./
+
+      - name: Fix permissions
+        shell: bash
+        run: |
+          chmod +x build_release/bin/*
+          chmod +x build_release/benchmark/*
+          chmod +x build_release/unittest/*
       
       - name: init mysql
         uses: shogo82148/actions-setup-mysql@v1

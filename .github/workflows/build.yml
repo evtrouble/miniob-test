@@ -12,9 +12,6 @@ env:
 
 jobs:
   build-and-test-on-ubuntu:
-    # The CMake configure and build commands are platform agnostic and should work equally well on Windows or Mac.
-    # You can convert this to a matrix build if you need cross-platform coverage.
-    # See: https://docs.github.com/en/free-pro-team@latest/actions/learn-github-actions/managing-complex-workflows#using-a-build-matrix
     runs-on: ubuntu-latest
 
     steps:
@@ -31,7 +28,6 @@ jobs:
       with:
         path: |
           deps/3rd/usr/local
-          build_release
           build_debug
         key: ${{ steps.build-cache.outputs.cache-key }}
         restore-keys: |
@@ -45,13 +41,24 @@ jobs:
 
     - name: BuildRelease
       shell: bash
-      run: bash build.sh release -DWITH_MEMTRACER=ON --make -j4
+      run: bash build.sh release -DCONCURRENCY=ON -DWITH_UNIT_TESTS=OFF -DWITH_BENCHMARK=ON -DWITH_MEMTRACER=ON --make -j4
 
     - name: BuildDebug
       shell: bash
-      run: bash build.sh debug -DCONCURRENCY=ON -DENABLE_COVERAGE=ON --make -j4
+      run: bash build.sh debug -DCONCURRENCY=ON -DENABLE_COVERAGE=ON -DWITH_MEMTRACER=ON --make -j4
 
-    # `memtracer_test` unittest runs in `memtracer-test` action.
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: build-artifacts
+        path: |
+          build_release/bin/
+          build_release/benchmark/
+          build_release/unittest/
+          build_release/lib/
+          deps/3rd/usr/local/
+        retention-days: 7
+
     - name: Test
       shell: bash
       run: |
@@ -73,9 +80,6 @@ jobs:
         token: ${{ secrets.CODECOV_TOKEN }}
 
   build-on-mac:
-    # The CMake configure and build commands are platform agnostic and should work equally well on Windows or Mac.
-    # You can convert this to a matrix build if you need cross-platform coverage.
-    # See: https://docs.github.com/en/free-pro-team@latest/actions/learn-github-actions/managing-complex-workflows#using-a-build-matrix
     runs-on: macos-latest
 
     steps:
@@ -98,6 +102,7 @@ jobs:
         path: |
           deps/3rd/usr/local
           build_release
+          build_debug
         key: ${{ steps.build-cache.outputs.cache-key }}
         restore-keys: |
           build-${{ github.sha }}-${{ runner.os }}-
@@ -110,4 +115,5 @@ jobs:
         export ASAN_OPTIONS=detect_container_overflow=0
         export PATH="/opt/homebrew/opt/bison/bin:$PATH"
         sudo bash build.sh init
-        bash build.sh release -DWITH_MEMTRACER=ON --make -j4
+        bash build.sh release -DCONCURRENCY=ON -DWITH_UNIT_TESTS=OFF -DWITH_BENCHMARK=ON -DWITH_MEMTRACER=ON --make -j4
+        bash build.sh debug -DWITH_MEMTRACER=ON --make -j4
