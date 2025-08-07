@@ -12,7 +12,7 @@ jobs:
 
   basic-test:
     runs-on: ubuntu-latest
-    needs: build-on-ubuntu
+    needs: build-debug
     steps:
       - name: Checkout repository and submodules
         uses: actions/checkout@v4
@@ -38,7 +38,7 @@ jobs:
 
   # I found that sysbench would send more request before receiving last response
   sysbench-test:
-    needs: build-on-ubuntu
+    needs: build-debug
     strategy:
       matrix:
         thread_model: ['one-thread-per-connection', 'java-thread-pool']
@@ -108,7 +108,7 @@ jobs:
 
   benchmark-test:
     runs-on: ubuntu-latest
-    needs: build-on-ubuntu
+    needs: build-debug
     steps:
       - name: Checkout repository and submodules
         uses: actions/checkout@v4
@@ -132,7 +132,7 @@ jobs:
           cd build_debug/bin/
           for file in `find ./ -name "*_concurrency_test" -executable`; do $file; if [ $? -ne 0 ]; then exit 1; fi; done
   memtracer-test:
-    needs: build-on-ubuntu
+    needs: build-debug
     strategy:
       matrix:
         memtracer: ['LD_PRELOAD=./lib/libmemtracer.so', '']
@@ -183,7 +183,7 @@ jobs:
           sleep 10 && echo "wake up"
           mysql -S /tmp/miniob.sock -e "show tables"
   integration-test:
-    needs: build-on-ubuntu
+    needs: build-debug
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository and submodules
