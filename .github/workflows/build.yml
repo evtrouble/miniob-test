@@ -121,7 +121,7 @@ jobs:
     - name: Download build artifacts
       uses: actions/download-artifact@v4
       with:
-        name: build-artifacts
+        name: build-debug-artifacts
         path: ./
 
     - name: Fix permissions
