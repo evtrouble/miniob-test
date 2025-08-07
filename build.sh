@@ -145,6 +145,21 @@ function prepare_build_dir
   echo "create soft link for build_${TYPE}, linked by directory named build"
   ln -s build_${TYPE} build
   cd ${TOPDIR}/build_${TYPE}
+  
+  # Clean CMake cache if it exists and was created on a different platform
+  if [ -f "CMakeCache.txt" ]; then
+    # Check if the cache was created with a different source directory path
+    CACHED_SOURCE=$(grep "^CMAKE_HOME_DIRECTORY:" CMakeCache.txt | cut -d "=" -f2 2>/dev/null || echo "")
+    CURRENT_SOURCE=$(realpath ${TOPDIR} 2>/dev/null || echo "${TOPDIR}")
+    
+    if [ -n "$CACHED_SOURCE" ] && [ "$CACHED_SOURCE" != "$CURRENT_SOURCE" ]; then
+      echo "CMake cache was created with different source directory, cleaning cache..."
+      echo "Cached source: $CACHED_SOURCE"
+      echo "Current source: $CURRENT_SOURCE"
+      rm -f CMakeCache.txt
+      rm -rf CMakeFiles
+    fi
+  fi
 }
 
 function do_build

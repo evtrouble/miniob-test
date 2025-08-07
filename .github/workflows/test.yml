@@ -20,7 +20,7 @@ jobs:
       - name: Setup build cache
         id: build-cache
         run: |
-          echo "cache-key=build-${{ github.sha }}-${{ github.run_id }}" >> $GITHUB_OUTPUT
+          echo "cache-key=build-${{ github.sha }}-${{ runner.os }}-${{ github.run_id }}" >> $GITHUB_OUTPUT
 
       - name: Cache build dependencies
         uses: actions/cache@v4
@@ -30,6 +30,7 @@ jobs:
             build_release
           key: ${{ steps.build-cache.outputs.cache-key }}
           restore-keys: |
+            build-${{ github.sha }}-${{ runner.os }}-
             build-${{ github.sha }}-
             build-
 
@@ -41,7 +42,7 @@ jobs:
       - name: Build miniob
         shell: bash
         run: |
-          bash build.sh release -DCONCURRENCY=ON -DWITH_UNIT_TESTS=OFF -DWITH_BENCHMARK=ON
+          bash build.sh release -DCONCURRENCY=ON -DWITH_UNIT_TESTS=OFF -DWITH_BENCHMARK=ON -DWITH_MEMTRACER=ON
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
@@ -153,6 +154,7 @@ jobs:
           cd build_release/bin/
           for file in `find ./ -name "*_concurrency_test" -executable`; do $file; if [ $? -ne 0 ]; then exit 1; fi; done
   memtracer-test:
+    needs: build
     strategy:
       matrix:
         memtracer: ['LD_PRELOAD=./lib/libmemtracer.so', '']
@@ -160,12 +162,12 @@ jobs:
     steps:
       - name: Checkout repository and submodules
         uses: actions/checkout@v4
-      
-      - name: build
-        shell: bash
-        run: |
-          sudo bash build.sh init
-          bash build.sh release -DWITH_BENCHMARK=ON -DENABLE_ASAN=OFF -DCONCURRENCY=ON -DWITH_MEMTRACER=ON
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: build-artifacts
+          path: ./
 
       - name: memtracer-performance-test
         shell: bash
@@ -196,10 +198,17 @@ jobs:
           sleep 10 && echo "wake up"
           mysql -S /tmp/miniob.sock -e "show tables"
   integration-test:
+    needs: build
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository and submodules
         uses: actions/checkout@v4
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: build-artifacts
+          path: ./
       
       - name: init mysql
         uses: shogo82148/actions-setup-mysql@v1
@@ -208,7 +217,6 @@ jobs:
       - name: init
         shell: bash
         run: |
-          sudo bash build.sh init
           sudo apt -y install pip python3-pymysql python3-psutil
 
       - name: integration test

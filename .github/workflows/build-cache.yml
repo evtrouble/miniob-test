@@ -22,7 +22,7 @@ jobs:
       - name: Setup build cache
         id: build-cache
         run: |
-          echo "cache-key=build-${{ github.sha }}-${{ github.run_id }}" >> $GITHUB_OUTPUT
+          echo "cache-key=build-${{ github.sha }}-${{ runner.os }}-${{ github.run_id }}" >> $GITHUB_OUTPUT
 
       - name: Cache build dependencies
         uses: actions/cache@v4
@@ -33,6 +33,7 @@ jobs:
             build_debug
           key: ${{ steps.build-cache.outputs.cache-key }}
           restore-keys: |
+            build-${{ github.sha }}-${{ runner.os }}-
             build-${{ github.sha }}-
             build-
 
@@ -44,7 +45,7 @@ jobs:
       - name: Build Release
         shell: bash
         run: |
-          bash build.sh release -DCONCURRENCY=ON -DWITH_UNIT_TESTS=OFF -DWITH_BENCHMARK=ON --make -j4
+          bash build.sh release -DCONCURRENCY=ON -DWITH_UNIT_TESTS=OFF -DWITH_BENCHMARK=ON -DWITH_MEMTRACER=ON --make -j4
 
       - name: Build Debug
         shell: bash

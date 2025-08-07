@@ -24,7 +24,7 @@ jobs:
     - name: Setup build cache
       id: build-cache
       run: |
-        echo "cache-key=build-${{ github.sha }}-${{ github.run_id }}" >> $GITHUB_OUTPUT
+        echo "cache-key=build-${{ github.sha }}-${{ runner.os }}-${{ github.run_id }}" >> $GITHUB_OUTPUT
 
     - name: Cache build dependencies
       uses: actions/cache@v4
@@ -35,6 +35,7 @@ jobs:
           build_debug
         key: ${{ steps.build-cache.outputs.cache-key }}
         restore-keys: |
+          build-${{ github.sha }}-${{ runner.os }}-
           build-${{ github.sha }}-
           build-
 
@@ -44,7 +45,7 @@ jobs:
 
     - name: BuildRelease
       shell: bash
-      run: bash build.sh release --make -j4
+      run: bash build.sh release -DWITH_MEMTRACER=ON --make -j4
 
     - name: BuildDebug
       shell: bash
@@ -89,7 +90,7 @@ jobs:
     - name: Setup build cache
       id: build-cache
       run: |
-        echo "cache-key=build-mac-${{ github.sha }}-${{ github.run_id }}" >> $GITHUB_OUTPUT
+        echo "cache-key=build-${{ github.sha }}-${{ runner.os }}-${{ github.run_id }}" >> $GITHUB_OUTPUT
 
     - name: Cache build dependencies
       uses: actions/cache@v4
@@ -99,8 +100,9 @@ jobs:
           build_release
         key: ${{ steps.build-cache.outputs.cache-key }}
         restore-keys: |
-          build-mac-${{ github.sha }}-
-          build-mac-
+          build-${{ github.sha }}-${{ runner.os }}-
+          build-${{ github.sha }}-
+          build-
         
     - name: Build
       shell: bash
@@ -108,4 +110,4 @@ jobs:
         export ASAN_OPTIONS=detect_container_overflow=0
         export PATH="/opt/homebrew/opt/bison/bin:$PATH"
         sudo bash build.sh init
-        bash build.sh release --make -j4
+        bash build.sh release -DWITH_MEMTRACER=ON --make -j4
