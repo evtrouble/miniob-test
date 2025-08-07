@@ -11,7 +11,7 @@ env:
   BUILD_TYPE: Release
 
 jobs:
-  build-and-test-on-ubuntu:
+  build-on-ubuntu:
     runs-on: ubuntu-latest
 
     steps:
@@ -39,25 +39,33 @@ jobs:
       shell: bash
       run: sudo bash build.sh init
 
-    - name: BuildRelease
-      shell: bash
-      run: bash build.sh release -DCONCURRENCY=ON -DWITH_UNIT_TESTS=OFF -DWITH_BENCHMARK=ON -DWITH_MEMTRACER=ON --make -j4
-
     - name: BuildDebug
       shell: bash
       run: bash build.sh debug -DCONCURRENCY=ON -DENABLE_COVERAGE=ON -DWITH_MEMTRACER=ON --make -j4
 
-    - name: Upload build artifacts
+    - name: Upload debug artifacts
       uses: actions/upload-artifact@v4
       with:
         name: build-artifacts
         path: |
-          build_release/bin/
-          build_release/benchmark/
-          build_release/unittest/
-          build_release/lib/
+          build_debug/bin/
+          build_debug/benchmark/
+          build_debug/unittest/
+          build_debug/lib/
           deps/3rd/usr/local/
         retention-days: 7
+
+    - name: BuildRelease
+      shell: bash
+      run: bash build.sh release -DCONCURRENCY=ON -DWITH_UNIT_TESTS=OFF -DWITH_BENCHMARK=ON -DWITH_MEMTRACER=ON --make -j4
+
+  test-on-ubuntu:
+    runs-on: ubuntu-latest
+    needs: build-on-ubuntu
+
+    steps:
+    - name: Checkout repository and submodules
+      uses: actions/checkout@v4
 
     - name: Test
       shell: bash
@@ -115,5 +123,5 @@ jobs:
         export ASAN_OPTIONS=detect_container_overflow=0
         export PATH="/opt/homebrew/opt/bison/bin:$PATH"
         sudo bash build.sh init
-        bash build.sh release -DCONCURRENCY=ON -DWITH_UNIT_TESTS=OFF -DWITH_BENCHMARK=ON -DWITH_MEMTRACER=ON --make -j4
         bash build.sh debug -DWITH_MEMTRACER=ON --make -j4
+        bash build.sh release -DCONCURRENCY=ON -DWITH_UNIT_TESTS=OFF -DWITH_BENCHMARK=ON -DWITH_MEMTRACER=ON --make -j4
