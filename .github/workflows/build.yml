@@ -70,7 +70,7 @@ jobs:
     - name: Upload debug artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: build-artifacts
+        name: build-debug-artifacts
         path: |
           build_debug/
           deps/3rd/usr/local/
@@ -101,14 +101,14 @@ jobs:
       shell: bash
       run: bash build.sh release -DCONCURRENCY=ON -DWITH_UNIT_TESTS=ON -DWITH_BENCHMARK=ON -DENABLE_ASAN=OFF -DWITH_MEMTRACER=ON --make -j4
 
-    - name: Upload release artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: build-artifacts
-        path: |
-          build_release/
-          deps/3rd/usr/local/
-        retention-days: 7
+          - name: Upload release artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-release-artifacts
+          path: |
+            build_release/
+            deps/3rd/usr/local/
+          retention-days: 7
 
   test-on-ubuntu:
     runs-on: ubuntu-latest
@@ -163,7 +163,7 @@ jobs:
       - name: Download build artifacts
         uses: actions/download-artifact@v4
         with:
-          name: build-artifacts
+          name: build-debug-artifacts
           path: ./
 
       - name: Fix permissions
@@ -197,7 +197,7 @@ jobs:
       - name: Download build artifacts
         uses: actions/download-artifact@v4
         with:
-          name: build-artifacts
+          name: build-debug-artifacts
           path: ./
 
       - name: Debug - List files
@@ -270,7 +270,7 @@ jobs:
       - name: Download build artifacts
         uses: actions/download-artifact@v4
         with:
-          name: build-artifacts
+          name: build-debug-artifacts
           path: ./
 
       - name: Fix permissions
@@ -301,7 +301,7 @@ jobs:
       - name: Download build artifacts
         uses: actions/download-artifact@v4
         with:
-          name: build-artifacts
+          name: build-release-artifacts
           path: ./
 
       - name: Fix permissions
@@ -334,7 +334,7 @@ jobs:
       - name: Download build artifacts
         uses: actions/download-artifact@v4
         with:
-          name: build-artifacts
+          name: build-debug-artifacts
           path: ./
 
       - name: Fix permissions
