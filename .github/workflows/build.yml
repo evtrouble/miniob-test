@@ -99,7 +99,16 @@ jobs:
 
     - name: BuildRelease
       shell: bash
-      run: bash build.sh release -DCONCURRENCY=ON -DWITH_UNIT_TESTS=OFF -DWITH_BENCHMARK=ON -DWITH_MEMTRACER=ON --make -j4
+      run: bash build.sh release -DCONCURRENCY=ON -DWITH_UNIT_TESTS=ON -DWITH_BENCHMARK=ON -DENABLE_ASAN=OFF -DWITH_MEMTRACER=ON --make -j4
+
+    - name: Upload release artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: build-artifacts
+        path: |
+          build_release/
+          deps/3rd/usr/local/
+        retention-days: 7
 
   test-on-ubuntu:
     runs-on: ubuntu-latest
@@ -280,7 +289,7 @@ jobs:
           for file in `find ./ -name "*_concurrency_test" -executable`; do $file; if [ $? -ne 0 ]; then exit 1; fi; done
 
   memtracer-test:
-    needs: build-debug
+    needs: build-release
     strategy:
       matrix:
         memtracer: ['LD_PRELOAD=./lib/libmemtracer.so', '']
@@ -298,21 +307,21 @@ jobs:
       - name: Fix permissions
         shell: bash
         run: |
-          chmod +x build_debug/bin/* || true
-          chmod +x build_debug/benchmark/* || true
-          chmod +x build_debug/unittest/* || true
-          find build_debug -name "*.so" -exec chmod +x {} \; || true
-          find build_debug -name "*.a" -exec chmod +x {} \; || true
+          chmod +x build_release/bin/* || true
+          chmod +x build_release/benchmark/* || true
+          chmod +x build_release/unittest/* || true
+          find build_release -name "*.so" -exec chmod +x {} \; || true
+          find build_release -name "*.a" -exec chmod +x {} \; || true
 
       - name: memtracer-performance-test
         shell: bash
         run: |
-          cd build_debug
+          cd build_release
           ${{matrix.memtracer}} ./benchmark/memtracer_performance_test
       - name: memtracer-unittest
         shell: bash
         run: |
-          cd build_debug
+          cd build_release
           LD_PRELOAD=./lib/libmemtracer.so ./unittest/memtracer_test
 
   integration-test:
