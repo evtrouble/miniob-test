@@ -41,17 +41,14 @@ jobs:
 
     - name: BuildDebug
       shell: bash
-      run: bash build.sh debug -DCONCURRENCY=ON -DENABLE_COVERAGE=ON -DWITH_MEMTRACER=ON --make -j4
+      run: bash build.sh debug -DCONCURRENCY=ON -DENABLE_COVERAGE=ON -DWITH_MEMTRACER=ON -DWITH_UNIT_TESTS=ON --make -j4
 
     - name: Upload debug artifacts
       uses: actions/upload-artifact@v4
       with:
         name: build-artifacts
         path: |
-          build_debug/bin/
-          build_debug/benchmark/
-          build_debug/unittest/
-          build_debug/lib/
+          build_debug/
           deps/3rd/usr/local/
         retention-days: 7
 
