@@ -12,7 +12,6 @@ jobs:
 
   basic-test:
     runs-on: ubuntu-latest
-    needs: build-debug
     steps:
       - name: Checkout repository and submodules
         uses: actions/checkout@v4
@@ -40,13 +39,13 @@ jobs:
 
   # I found that sysbench would send more request before receiving last response
   sysbench-test:
-    needs: build-debug
     strategy:
       matrix:
         thread_model: ['one-thread-per-connection', 'java-thread-pool']
         test_case: ['miniob_insert', 'miniob_delete', 'miniob_select']
 
     runs-on: ubuntu-latest
+    name: sysbench-test-${{ matrix.thread_model }}-${{ matrix.test_case }}
     steps:
       - name: Checkout repository and submodules
         uses: actions/checkout@v4
@@ -56,6 +55,15 @@ jobs:
         with:
           name: build-artifacts
           path: ./
+
+      - name: Debug - List files
+        shell: bash
+        run: |
+          echo "Current directory: $(pwd)"
+          echo "Listing build_debug contents:"
+          ls -la build_debug/ || echo "build_debug directory not found"
+          echo "Listing build_debug/bin contents:"
+          ls -la build_debug/bin/ || echo "build_debug/bin directory not found"
 
       - name: Fix permissions
         shell: bash
@@ -112,7 +120,6 @@ jobs:
 
   benchmark-test:
     runs-on: ubuntu-latest
-    needs: build-debug
     steps:
       - name: Checkout repository and submodules
         uses: actions/checkout@v4
@@ -138,7 +145,6 @@ jobs:
           cd build_debug/bin/
           for file in `find ./ -name "*_concurrency_test" -executable`; do $file; if [ $? -ne 0 ]; then exit 1; fi; done
   memtracer-test:
-    needs: build-debug
     strategy:
       matrix:
         memtracer: ['LD_PRELOAD=./lib/libmemtracer.so', '']
@@ -191,7 +197,6 @@ jobs:
           sleep 10 && echo "wake up"
           mysql -S /tmp/miniob.sock -e "show tables"
   integration-test:
-    needs: build-debug
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository and submodules

@@ -13,6 +13,7 @@ env:
 jobs:
   build-debug:
     runs-on: ubuntu-latest
+    name: build-debug
 
     steps:
     - name: Checkout repository and submodules
