@@ -42,9 +42,9 @@ jobs:
       shell: bash
       run: sudo bash build.sh init
 
-  build-debug:
+  build-and-test-on-ubuntu:
     runs-on: ubuntu-latest
-    name: build-debug-ubuntu
+    name: build-and-test-on-ubuntu
     needs: init-ubuntu
 
     steps:
@@ -67,14 +67,25 @@ jobs:
       shell: bash
       run: bash build.sh debug -DCONCURRENCY=ON -DENABLE_COVERAGE=ON -DWITH_BENCHMARK=ON -DWITH_MEMTRACER=ON -DWITH_UNIT_TESTS=ON --make -j4
 
-    - name: Upload debug artifacts
-      uses: actions/upload-artifact@v4
+    - name: Test
+      shell: bash
+      run: |
+        cd build_debug
+        ctest -E memtracer_test --verbose
+
+    - name: lcov
+      shell: bash
+      run: |
+        export DEBIAN_FRONTEND=noninteractive
+        sudo apt-get update && sudo apt-get install -y lcov
+        cd build_debug
+        rm -rf unittest
+        lcov -c -d ./ -o coverage.info --ignore-errors source
+
+    - uses: codecov/codecov-action@v3
       with:
-        name: build-debug-artifacts
-        path: |
-          build_debug/
-          deps/3rd/usr/local/
-        retention-days: 7
+        file: build_debug/coverage.info
+        token: ${{ secrets.CODECOV_TOKEN }}
 
   build-release:
     runs-on: ubuntu-latest
@@ -110,52 +121,9 @@ jobs:
           deps/3rd/usr/local/
         retention-days: 7
 
-  test-on-ubuntu:
-    runs-on: ubuntu-latest
-    needs: build-debug
-
-    steps:
-    - name: Checkout repository and submodules
-      uses: actions/checkout@v4
-
-    - name: Download build artifacts
-      uses: actions/download-artifact@v4
-      with:
-        name: build-debug-artifacts
-        path: ./
-
-    - name: Fix permissions
-      shell: bash
-      run: |
-        chmod +x build_debug/bin/* || true
-        chmod +x build_debug/unittest/* || true
-        chmod +x build_debug/benchmark/* || true
-        find build_debug -name "*.so" -exec chmod +x {} \; || true
-        find build_debug -name "*.a" -exec chmod +x {} \; || true
-
-    - name: Test
-      shell: bash
-      run: |
-        cd build_debug
-        ctest -E memtracer_test --verbose
-
-    - name: lcov
-      shell: bash
-      run: |
-        export DEBIAN_FRONTEND=noninteractive
-        sudo apt-get update && sudo apt-get install -y lcov
-        cd build_debug
-        rm -rf unittest
-        lcov -c -d ./ -o coverage.info --ignore-errors source
-
-    - uses: codecov/codecov-action@v3
-      with:
-        file: build_debug/coverage.info
-        token: ${{ secrets.CODECOV_TOKEN }}
-
   basic-test:
     runs-on: ubuntu-latest
-    needs: build-debug
+    needs: build-release
     steps:
       - name: Checkout repository and submodules
         uses: actions/checkout@v4
@@ -163,17 +131,17 @@ jobs:
       - name: Download build artifacts
         uses: actions/download-artifact@v4
         with:
-          name: build-debug-artifacts
+          name: build-release-artifacts
           path: ./
 
       - name: Fix permissions
         shell: bash
         run: |
-          chmod +x build_debug/bin/* || true
-          chmod +x build_debug/benchmark/* || true
-          chmod +x build_debug/unittest/* || true
-          find build_debug -name "*.so" -exec chmod +x {} \; || true
-          find build_debug -name "*.a" -exec chmod +x {} \; || true
+          chmod +x build_release/bin/* || true
+          chmod +x build_release/benchmark/* || true
+          chmod +x build_release/unittest/* || true
+          find build_release -name "*.so" -exec chmod +x {} \; || true
+          find build_release -name "*.a" -exec chmod +x {} \; || true
 
       - name: run basic test
         shell: bash
@@ -182,44 +150,40 @@ jobs:
           python3 test/case/miniob_test.py --test-cases=basic | tail -1 | grep "basic is success"
 
   sysbench-test:
-    needs: [build-debug, build-release]
+    needs: [build-release]
     strategy:
       matrix:
         include:
-          # 基础sysbench测试 (debug build)
+          # 基础sysbench测试
           - thread_model: 'one-thread-per-connection'
             test_case: 'miniob_insert'
-            build_type: 'debug'
+            build_type: 'release'
             memtracer: ''
           - thread_model: 'one-thread-per-connection'
             test_case: 'miniob_delete'
-            build_type: 'debug'
+            build_type: 'release'
             memtracer: ''
           - thread_model: 'one-thread-per-connection'
             test_case: 'miniob_select'
-            build_type: 'debug'
+            build_type: 'release'
             memtracer: ''
           - thread_model: 'java-thread-pool'
             test_case: 'miniob_insert'
-            build_type: 'debug'
+            build_type: 'release'
             memtracer: ''
           - thread_model: 'java-thread-pool'
             test_case: 'miniob_delete'
-            build_type: 'debug'
+            build_type: 'release'
             memtracer: ''
           - thread_model: 'java-thread-pool'
             test_case: 'miniob_select'
-            build_type: 'debug'
+            build_type: 'release'
             memtracer: ''
-          # memtracer sysbench测试 (release build)
+          # memtracer sysbench测试
           - thread_model: 'one-thread-per-connection'
             test_case: 'miniob_insert'
             build_type: 'release'
             memtracer: 'LD_PRELOAD=./lib/libmemtracer.so'
-          - thread_model: 'one-thread-per-connection'
-            test_case: 'miniob_insert'
-            build_type: 'release'
-            memtracer: ''
 
     runs-on: ubuntu-latest
     name: sysbench-test-${{ matrix.build_type }}-${{ matrix.thread_model }}-${{ matrix.test_case }}
@@ -286,7 +250,7 @@ jobs:
 
   benchmark-test:
     runs-on: ubuntu-latest
-    needs: build-debug
+    needs: build-release
     steps:
       - name: Checkout repository and submodules
         uses: actions/checkout@v4
@@ -294,22 +258,22 @@ jobs:
       - name: Download build artifacts
         uses: actions/download-artifact@v4
         with:
-          name: build-debug-artifacts
+          name: build-release-artifacts
           path: ./
 
       - name: Fix permissions
         shell: bash
         run: |
-          chmod +x build_debug/bin/* || true
-          chmod +x build_debug/benchmark/* || true
-          chmod +x build_debug/unittest/* || true
-          find build_debug -name "*.so" -exec chmod +x {} \; || true
-          find build_debug -name "*.a" -exec chmod +x {} \; || true
+          chmod +x build_release/bin/* || true
+          chmod +x build_release/benchmark/* || true
+          chmod +x build_release/unittest/* || true
+          find build_release -name "*.so" -exec chmod +x {} \; || true
+          find build_release -name "*.a" -exec chmod +x {} \; || true
 
       - name: concurrency-test
         shell: bash
         run: |
-          cd build_debug/bin/
+          cd build_release/bin/
           for file in `find ./ -name "*_concurrency_test" -executable`; do $file; if [ $? -ne 0 ]; then exit 1; fi; done
 
   memtracer-test:
@@ -349,7 +313,7 @@ jobs:
           LD_PRELOAD=./lib/libmemtracer.so ./unittest/memtracer_test
 
   integration-test:
-    needs: build-debug
+    needs: build-release
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository and submodules
@@ -358,17 +322,17 @@ jobs:
       - name: Download build artifacts
         uses: actions/download-artifact@v4
         with:
-          name: build-debug-artifacts
+          name: build-release-artifacts
           path: ./
 
       - name: Fix permissions
         shell: bash
         run: |
-          chmod +x build_debug/bin/* || true
-          chmod +x build_debug/benchmark/* || true
-          chmod +x build_debug/unittest/* || true
-          find build_debug -name "*.so" -exec chmod +x {} \; || true
-          find build_debug -name "*.a" -exec chmod +x {} \; || true
+          chmod +x build_release/bin/* || true
+          chmod +x build_release/benchmark/* || true
+          chmod +x build_release/unittest/* || true
+          find build_release -name "*.so" -exec chmod +x {} \; || true
+          find build_release -name "*.a" -exec chmod +x {} \; || true
       
       - name: init mysql
         uses: shogo82148/actions-setup-mysql@v1
