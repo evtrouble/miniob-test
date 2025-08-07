@@ -26,9 +26,11 @@ jobs:
       - name: Fix permissions
         shell: bash
         run: |
-          chmod +x build_debug/bin/*
-          chmod +x build_debug/benchmark/*
-          chmod +x build_debug/unittest/*
+          chmod +x build_debug/bin/* || true
+          chmod +x build_debug/benchmark/* || true
+          chmod +x build_debug/unittest/* || true
+          find build_debug -name "*.so" -exec chmod +x {} \; || true
+          find build_debug -name "*.a" -exec chmod +x {} \; || true
 
       - name: run basic test
         shell: bash
@@ -58,9 +60,11 @@ jobs:
       - name: Fix permissions
         shell: bash
         run: |
-          chmod +x build_debug/bin/*
-          chmod +x build_debug/benchmark/*
-          chmod +x build_debug/unittest/*
+          chmod +x build_debug/bin/* || true
+          chmod +x build_debug/benchmark/* || true
+          chmod +x build_debug/unittest/* || true
+          find build_debug -name "*.so" -exec chmod +x {} \; || true
+          find build_debug -name "*.a" -exec chmod +x {} \; || true
 
       - name: install sysbench and mariadb-client
         shell: bash
@@ -122,9 +126,11 @@ jobs:
       - name: Fix permissions
         shell: bash
         run: |
-          chmod +x build_debug/bin/*
-          chmod +x build_debug/benchmark/*
-          chmod +x build_debug/unittest/*
+          chmod +x build_debug/bin/* || true
+          chmod +x build_debug/benchmark/* || true
+          chmod +x build_debug/unittest/* || true
+          find build_debug -name "*.so" -exec chmod +x {} \; || true
+          find build_debug -name "*.a" -exec chmod +x {} \; || true
 
       - name: concurrency-test
         shell: bash
@@ -150,9 +156,11 @@ jobs:
       - name: Fix permissions
         shell: bash
         run: |
-          chmod +x build_debug/bin/*
-          chmod +x build_debug/benchmark/*
-          chmod +x build_debug/unittest/*
+          chmod +x build_debug/bin/* || true
+          chmod +x build_debug/benchmark/* || true
+          chmod +x build_debug/unittest/* || true
+          find build_debug -name "*.so" -exec chmod +x {} \; || true
+          find build_debug -name "*.a" -exec chmod +x {} \; || true
 
       - name: memtracer-performance-test
         shell: bash
@@ -198,9 +206,11 @@ jobs:
       - name: Fix permissions
         shell: bash
         run: |
-          chmod +x build_debug/bin/*
-          chmod +x build_debug/benchmark/*
-          chmod +x build_debug/unittest/*
+          chmod +x build_debug/bin/* || true
+          chmod +x build_debug/benchmark/* || true
+          chmod +x build_debug/unittest/* || true
+          find build_debug -name "*.so" -exec chmod +x {} \; || true
+          find build_debug -name "*.a" -exec chmod +x {} \; || true
       
       - name: init mysql
         uses: shogo82148/actions-setup-mysql@v1
