@@ -182,14 +182,47 @@ jobs:
           python3 test/case/miniob_test.py --test-cases=basic | tail -1 | grep "basic is success"
 
   sysbench-test:
-    needs: build-debug
+    needs: [build-debug, build-release]
     strategy:
       matrix:
-        thread_model: ['one-thread-per-connection', 'java-thread-pool']
-        test_case: ['miniob_insert', 'miniob_delete', 'miniob_select']
+        include:
+          # 基础sysbench测试 (debug build)
+          - thread_model: 'one-thread-per-connection'
+            test_case: 'miniob_insert'
+            build_type: 'debug'
+            memtracer: ''
+          - thread_model: 'one-thread-per-connection'
+            test_case: 'miniob_delete'
+            build_type: 'debug'
+            memtracer: ''
+          - thread_model: 'one-thread-per-connection'
+            test_case: 'miniob_select'
+            build_type: 'debug'
+            memtracer: ''
+          - thread_model: 'java-thread-pool'
+            test_case: 'miniob_insert'
+            build_type: 'debug'
+            memtracer: ''
+          - thread_model: 'java-thread-pool'
+            test_case: 'miniob_delete'
+            build_type: 'debug'
+            memtracer: ''
+          - thread_model: 'java-thread-pool'
+            test_case: 'miniob_select'
+            build_type: 'debug'
+            memtracer: ''
+          # memtracer sysbench测试 (release build)
+          - thread_model: 'one-thread-per-connection'
+            test_case: 'miniob_insert'
+            build_type: 'release'
+            memtracer: 'LD_PRELOAD=./lib/libmemtracer.so'
+          - thread_model: 'one-thread-per-connection'
+            test_case: 'miniob_insert'
+            build_type: 'release'
+            memtracer: ''
 
     runs-on: ubuntu-latest
-    name: sysbench-test-${{ matrix.thread_model }}-${{ matrix.test_case }}
+    name: sysbench-test-${{ matrix.build_type }}-${{ matrix.thread_model }}-${{ matrix.test_case }}
     steps:
       - name: Checkout repository and submodules
         uses: actions/checkout@v4
@@ -197,26 +230,17 @@ jobs:
       - name: Download build artifacts
         uses: actions/download-artifact@v4
         with:
-          name: build-debug-artifacts
+          name: ${{ matrix.build_type == 'debug' && 'build-debug-artifacts' || 'build-release-artifacts' }}
           path: ./
-
-      - name: Debug - List files
-        shell: bash
-        run: |
-          echo "Current directory: $(pwd)"
-          echo "Listing build_debug contents:"
-          ls -la build_debug/ || echo "build_debug directory not found"
-          echo "Listing build_debug/bin contents:"
-          ls -la build_debug/bin/ || echo "build_debug/bin directory not found"
 
       - name: Fix permissions
         shell: bash
         run: |
-          chmod +x build_debug/bin/* || true
-          chmod +x build_debug/benchmark/* || true
-          chmod +x build_debug/unittest/* || true
-          find build_debug -name "*.so" -exec chmod +x {} \; || true
-          find build_debug -name "*.a" -exec chmod +x {} \; || true
+          chmod +x build_${{ matrix.build_type }}/bin/* || true
+          chmod +x build_${{ matrix.build_type }}/benchmark/* || true
+          chmod +x build_${{ matrix.build_type }}/unittest/* || true
+          find build_${{ matrix.build_type }} -name "*.so" -exec chmod +x {} \; || true
+          find build_${{ matrix.build_type }} -name "*.a" -exec chmod +x {} \; || true
 
       - name: install sysbench and mariadb-client
         shell: bash
@@ -228,7 +252,7 @@ jobs:
       - name: start server
         shell: bash
         run: |
-          nohup ./build_debug/bin/observer -T ${{ matrix.thread_model }} -s /tmp/miniob.sock -f etc/observer.ini -P mysql -t mvcc -d disk 2>&1 &
+          nohup sh -c '${{ matrix.memtracer }} ./build_${{ matrix.build_type }}/bin/observer -T ${{ matrix.thread_model }} -s /tmp/miniob.sock -f etc/observer.ini -P mysql -t mvcc -d disk' &
           sleep 10 && echo "wake up"
           mysql --version
           mysql -S /tmp/miniob.sock -e "show tables"
@@ -250,7 +274,7 @@ jobs:
       - name: restart server
         shell: bash
         run: |
-          nohup ./build_debug/bin/observer -T ${{ matrix.thread_model }} -s /tmp/miniob.sock -f etc/observer.ini -P mysql -t mvcc -d disk 2>&1 &
+          nohup sh -c '${{ matrix.memtracer }} ./build_${{ matrix.build_type }}/bin/observer -T ${{ matrix.thread_model }} -s /tmp/miniob.sock -f etc/observer.ini -P mysql -t mvcc -d disk' &
           sleep 10 && echo "wake up"
           mysql -S /tmp/miniob.sock -e "show tables"
 
