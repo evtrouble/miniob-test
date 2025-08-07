@@ -98,6 +98,13 @@ jobs:
         name: build-artifacts
         path: ./
 
+    - name: Fix permissions
+      shell: bash
+      run: |
+        chmod +x build_debug/bin/*
+        chmod +x build_debug/unittest/*
+        chmod +x build_debug/benchmark/*
+
     - name: Test
       shell: bash
       run: |
